@@ -33,6 +33,8 @@
 #include <limits.h>
 #include <signal.h>
 #include <inttypes.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 
 #include <tox/tox.h>
 
@@ -50,6 +52,7 @@ static void init_toxcs_state(void)
 {
     Tox_Bot.start_time = (uint64_t) time(NULL);
     Tox_Bot.num_online_friends = 0;
+    Tox_Bot.server_pid = -1;
 }
 
 static void catch_SIGINT(int sig)
@@ -289,14 +292,14 @@ static Tox *init_tox(void)
 
     size_t s_len = tox_self_get_status_message_size(m);
 
-    if (s_len == 0) {
-        const char *statusmsg = "Check server status with the 'status' command.";
+    if (1 || s_len == 0) {
+        const char *statusmsg = "Connect to cs.kirara.ca:27015 | Check server status with the 'status' command.";
         tox_self_set_status_message(m, (uint8_t *) statusmsg, strlen(statusmsg), NULL);
     }
 
     size_t n_len = tox_self_get_name_size(m);
 
-    if (n_len == 0)
+    if (1 || n_len == 0)
         tox_self_set_name(m, (uint8_t *) "CSbot", strlen("CSbot"), NULL);
 
     return m;
@@ -397,6 +400,12 @@ int main(int argc, char **argv)
 
     while (!FLAG_EXIT) {
         tox_iterate(m);
+
+        if (Tox_Bot.server_pid != -1 && waitpid(Tox_Bot.server_pid, NULL, WNOHANG) == Tox_Bot.server_pid) {
+            Tox_Bot.server_pid = -1;
+            puts("server died");
+        }
+
         uint64_t cur_time = (uint64_t) time(NULL);
         msleepval = optimal_msleepval(&looptimer, &loopcount, cur_time, msleepval);
         usleep(msleepval);

@@ -30,7 +30,7 @@
 struct Tox_Bot {
     uint64_t start_time;
     int num_online_friends;
-    bool is_running;
+    int server_pid;
 };
 
 int load_Masters(const char *path);

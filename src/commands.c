@@ -28,9 +28,11 @@
 #include <stdbool.h>
 #include <time.h>
 #include <inttypes.h>
+#include <signal.h>
 
 #include <tox/tox.h>
 
+#include "cs.h"
 #include "toxcs.h"
 #include "misc.h"
 
@@ -54,17 +56,33 @@ static void cmd_start(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_
         return;
     }
 
-    if (Tox_Bot.is_running) {
+    if (argc < 1) {
+        outmsg = "Error: a starting map is required (try 'cstrike de_dust2' or 'cstrike cs_assault')";
+        tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
+        return;
+    }
+
+    if (!map_exists(argv[1])) {
+        const char *fmt = "Error: map '%s' doesn't exist";
+        char em[strlen(fmt) + strlen(argv[1])];
+        sprintf(em, fmt, argv[1]);
+
+        tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) em, strlen(em), NULL);
+        return;
+    }
+
+    if (Tox_Bot.server_pid != -1) {
         outmsg = "Server is already running";
         tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
         return;
     }
 
-    if (system("./hlds_run -game cstrike +maxplayers 10 +map <user string> +exec server.cfg") == -1) {
+    int now_pid = forkserver(argv[1]);
+    if (now_pid == -1) {
         outmsg = "Failed to execute system command";
     } else {
         outmsg = "Started server";
-        Tox_Bot.is_running = true;
+        Tox_Bot.server_pid = now_pid;
     }
 
     tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
@@ -79,17 +97,29 @@ static void cmd_stop(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_L
         return;
     }
 
-    // TODO: you need to make this do something
+    if (Tox_Bot.server_pid == -1) {
+        outmsg = "Server is not running";
+    } else {
+        outmsg = "Shutting down server";
+        int ok = kill(Tox_Bot.server_pid, SIGTERM);
+        if (ok == -1) {
+            perror("kill failed");
+            outmsg = "kill failed";
+        }
+    }
 
-    outmsg = Tox_Bot.is_running ? "Shutting down server" : "Server is not running";
     tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
-    Tox_Bot.is_running = false;
 }
 
 static void cmd_status(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_LENGTH])
 {
-    const char *outmsg = Tox_Bot.is_running ? "Server is running" : "Server is not running";
+    const char *outmsg = (Tox_Bot.server_pid != -1) ? "Server is running" : "Server is not running";
     tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
+}
+
+static void cmd_maplist(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_LENGTH])
+{
+    map_list(m, friendnum);
 }
 
 /* Parses input command and puts args into arg array.
@@ -142,6 +172,7 @@ static struct {
     { "start",            cmd_start   },
     { "stop",             cmd_stop    },
     { "status",           cmd_status  },
+    { "maplist",          cmd_maplist },
     { NULL,               NULL        },
 };
 
