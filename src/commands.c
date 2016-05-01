@@ -86,6 +86,12 @@ static void cmd_start(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_
     }
 
     tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
+
+    char *play_msg = "CSBot Has started, It's time to PLAY!";
+    for(int i = Tox_Bot.num_friends; i >= 0; i-- ) {
+        /* This is likely to fail a few times, but we don't care*/
+        tox_friend_send_message(m, i, TOX_MESSAGE_TYPE_NORMAL, (uint8_t*)play_msg, strlen(play_msg), NULL);
+    }
 }
 
 static void cmd_stop(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_LENGTH])
