@@ -153,6 +153,8 @@ static void cb_friend_connection_change(Tox *m, uint32_t friendnumber, TOX_CONNE
     if (size == 0)
         return;
 
+    Tox_Bot.num_friends = size;
+
     uint32_t list[size];
     tox_self_get_friend_list(m, list);
 

@@ -29,6 +29,7 @@
 
 struct Tox_Bot {
     uint64_t start_time;
+    size_t num_friends;
     int num_online_friends;
     int server_pid;
 };
