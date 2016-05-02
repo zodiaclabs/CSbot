@@ -117,6 +117,34 @@ static void cmd_status(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND
     tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, strlen(outmsg), NULL);
 }
 
+static void nao_hex_string(char *out, const uint8_t *buf, int len) {
+    static const char *HEX = "0123456789ABCDEF";
+
+    const uint8_t *b = buf;
+    char *s = out;
+    for (int i = 0; i < len; ++i) {
+        *s++ = HEX[((*b & 0xF0) >> 4)];
+        *s++ = HEX[(*b++ & 0x0F)];
+    }
+}
+
+static void cmd_myid(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_LENGTH])
+{
+    char outmsg[76];
+    uint8_t idb[38];
+    tox_self_get_address(m, idb);
+    nao_hex_string(outmsg, idb, 38);
+    tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) outmsg, 76, NULL);
+
+    const char *s;
+    if (!friend_is_master(m, friendnum)) {
+        s = "You are not an admin of this bot.";
+    } else {
+        s = "You are an admin of this bot.";
+    }   
+    tox_friend_send_message(m, friendnum, TOX_MESSAGE_TYPE_NORMAL, (uint8_t *) s, strlen(s), NULL);
+}
+
 static void cmd_maplist(Tox *m, int friendnum, int argc, char (*argv)[MAX_COMMAND_LENGTH])
 {
     map_list(m, friendnum);
@@ -173,6 +201,7 @@ static struct {
     { "stop",             cmd_stop    },
     { "status",           cmd_status  },
     { "maplist",          cmd_maplist },
+    { "id?",              cmd_myid    },
     { NULL,               NULL        },
 };
 
